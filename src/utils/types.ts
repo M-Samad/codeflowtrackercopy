@@ -18,6 +18,7 @@ export interface AxiosResponse {
     function: string;
     codeBlock: string;
     declaration?: string;
+    context?: string;
   }
   
   export interface FunctionUsage {

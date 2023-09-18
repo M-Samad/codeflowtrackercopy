@@ -9,7 +9,7 @@ function App() {
   const searchString = "searchString"; 
   async function runAnalysis() {
     const occurrences = await findOccurrences(searchString);
-    displayResults(occurrences);
+    // displayResults(occurrences);
     
     const graph = new Graph();
     const graphObj = await displayGraphWithCode(graph, occurrences);
