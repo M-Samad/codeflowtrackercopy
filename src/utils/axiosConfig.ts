@@ -1,3 +1,4 @@
+//axiosConfig.ts
 import axios from 'axios';
 
 const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;

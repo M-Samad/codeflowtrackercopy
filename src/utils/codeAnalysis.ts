@@ -1,3 +1,4 @@
+//codeAnalysis.ts
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import { fetchRepoFiles, isValidFile } from './utils';
@@ -47,6 +48,50 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
                 }
 
                 let declaration = path.findParent((p) => p.isFunctionDeclaration() || p.isImportDeclaration() || p.isVariableDeclaration());
+                let context = '';
+
+                // Function Parameter and Function Declaration
+                if (path.parentPath.isFunctionDeclaration() || path.parentPath.isFunctionExpression() || path.parentPath.isArrowFunctionExpression()) {
+                    const functionNode = path.parentPath.node;
+                    
+                    // Check if the identifier matches a function parameter
+                    if (functionNode.params.some(param => param.type === "Identifier" && param.name === searchString)) {
+                        context = "Function Parameter";
+                    }
+                    // Check if the identifier is the name of the function being declared, but only for FunctionDeclaration
+                    else if (path.parentPath.isFunctionDeclaration() && functionNode.id && functionNode.id.type === "Identifier" && functionNode.id.name === searchString) {
+                        context = "Function Declaration";
+                    }
+                }
+                // Return Statement (deep check)
+                else if (path.findParent((p) => p.isReturnStatement())) {
+                  context = "Return Statement";
+                }
+                // Function Call
+                else if (path.parentPath.isCallExpression()) {
+                  context = "Function Call";
+                }
+                // Variable Declaration
+                else if (path.parentPath.isVariableDeclarator()) {
+                  context = "Variable Declaration";
+                }
+                // Object Property
+                else if (path.parentPath.isObjectProperty()) {
+                  context = "Object Property";
+                }
+                // Array Element
+                else if (path.parentPath.isArrayExpression()) {
+                  context = "Array Element";
+                } else if (
+                  path.parentPath.isBinaryExpression() &&
+                  ["===", "!==", "==", "!=", "<", ">", "<=", ">="].includes(
+                    path.parentPath.node.operator
+                  ) &&
+                  (path.parentPath.parentPath.isConditionalExpression() ||
+                    path.parentPath.parentPath.isIfStatement())
+                ) {
+                  context = "Equality or Comparison Check";
+                }
                 if (declaration) {
                     const startLine = declaration.node.loc?.start.line ?? 0;
                     const endLine = declaration.node.loc?.end.line ?? 0;
@@ -57,13 +102,13 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
                         file: filePath,
                         function: functionName,
                         codeBlock: codeBlock,
-                        declaration: declarationCode
+                        declaration: declarationCode,
+                        context: context
                     });      
                 }
             }
         }
     });
-
     return occurrences;
 }
 

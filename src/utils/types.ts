@@ -1,3 +1,4 @@
+//types.ts
 export interface AxiosResponse {
     data: any;
   }
@@ -18,6 +19,7 @@ export interface AxiosResponse {
     function: string;
     codeBlock: string;
     declaration?: string;
+    context?: string;
   }
   
   export interface FunctionUsage {
