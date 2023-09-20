@@ -20,6 +20,8 @@
     "reactflow": "^11.8.3"
   },
   "devDependencies": {
+    "@babel/types": "^7.22.19",
+    "@types/babel__core": "^7.20.2",
     "@types/babel__traverse": "^7.20.1",
     "@types/graphlib": "^2.1.8",
     "@types/react": "^18.2.15",

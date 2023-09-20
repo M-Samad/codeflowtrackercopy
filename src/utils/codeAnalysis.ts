@@ -1,8 +1,9 @@
 //codeAnalysis.ts
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
-import { fetchRepoFiles, isValidFile } from './utils';
-import { Occurrence, FunctionUsage } from './types';
+import { fetchRepoFiles } from './utils';
+import { Occurrence } from './types';
+import * as babelTypes from '@babel/types';
 
 type PluginName = "jsx" | "typescript";
 
@@ -53,7 +54,11 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
                     context = "JSX Attribute";
                 }
                 // Hook Declaration
-                else if (path.parentPath.isCallExpression() && ["useState", "useEffect", "useMemo", "useCallback", "useRef", "useContext"].includes(path.parentPath.node.callee.name)) {
+                else if (
+                    path.parentPath.isCallExpression() && 
+                    path.parentPath.node.callee.type === 'Identifier' && 
+                    ["useState", "useEffect", "useMemo", "useCallback", "useRef", "useContext"].includes(path.parentPath.node.callee.name)
+                ) {
                     context = "Hook Declaration";
                 }
                 // JSX Element
@@ -73,9 +78,13 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
                         context = "Function Parameter";
                     }
                     // Check if the identifier is the name of the function being declared, but only for FunctionDeclaration
-                    else if (path.parentPath.isFunctionDeclaration() && functionNode.id && functionNode.id.type === "Identifier" && functionNode.id.name === searchString) {
-                        context = "Function Declaration";
+                    else if (path.parentPath.isFunctionDeclaration()) {
+                        const functionDeclarationNode = path.parentPath.node as babelTypes.FunctionDeclaration;
+                        if (functionDeclarationNode.id && functionDeclarationNode.id.type === "Identifier" && functionDeclarationNode.id.name === searchString) {
+                            context = "Function Declaration";
+                        }
                     }
+                    
                 }
                 // Return Statement (deep check)
                 else if (path.findParent((p) => p.isReturnStatement())) {
@@ -129,37 +138,3 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
     return occurrences;
 }
 
-export async function analyzeFunctionUsage(functionName: string): Promise<FunctionUsage[]> {
-  const repoContent = await fetchRepoFiles();
-  let functionUsages: FunctionUsage[] = [];
-    if (typeof repoContent === 'string') {
-        console.error("Expected a list of RepoItems but received a string.");
-        return [];
-    }
-    for (let item of repoContent) {
-        if (item.type === "file" && isValidFile(item.name)) {
-            const fileContent = await fetchRepoFiles(item.path);
-            if (typeof fileContent !== 'string') {
-                console.error(`Expected file content but received a list of items for path: ${item.path}`);
-                return [];
-            }
-            const ast = parse(fileContent, AST_PARSE_CONFIG);
-            traverse(ast, {
-                CallExpression(path) {
-                    if (path.node.callee.type === "Identifier" && path.node.callee.name === functionName) {
-                        const startLine = path.node.loc?.start.line ?? 0;
-                        const endLine = path.node.loc?.end.line ?? 0;
-                        let callCode = fileContent.split('\n').slice(startLine - 1, endLine).join('\n');
-                        functionUsages.push({
-                            file: item.path,
-                            location: path.node.loc ?? { start: { line: 0, column: 0 }, end: { line: 0, column: 0 } }, // Default value if loc is null or undefined
-                            callCode: callCode
-                        });                        
-                    }
-                }
-            });            
-        }
-    }
-
-    return functionUsages;
-}
