@@ -1,6 +1,6 @@
 //App.tsx
 import { useEffect, useState } from "react";
-import { displayGraphWithCode, displayResults } from "./utils/display";
+import { displayGraphWithCode } from "./utils/display";
 import { findOccurrences } from "./utils/tracker";
 import { Graph } from 'graphlib';
 function App() {
@@ -9,7 +9,7 @@ function App() {
   const searchString = "searchString"; 
   async function runAnalysis() {
     const occurrences = await findOccurrences(searchString);
-    // displayResults(occurrences);
+    
     console.log("++++occurrences++++",occurrences)
     const graph = new Graph();
     const graphObj = await displayGraphWithCode(graph, occurrences);
