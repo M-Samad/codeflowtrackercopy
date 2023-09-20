@@ -13,25 +13,80 @@ export function displayResults(occurrences: Occurrence[]): void {
     });
 }
 
+
 export async function displayGraphWithCode(graph: Graph, occurrences: Occurrence[]): Promise<Graph> {
-    // Sort occurrences based on their file and then their location in the codebase
+    // Sort occurrences
     occurrences.sort((a, b) => {
-      if (a.file === b.file) {
-          return a.location.start.line - b.location.start.line || a.location.start.column - b.location.start.column;
-      } 
-      return a.file.localeCompare(b.file);
-  });
+        if (a.file === b.file) {
+            return a.location.start.line - b.location.start.line || a.location.start.column - b.location.start.column;
+        } 
+        return a.file.localeCompare(b.file);
+    });
 
-  // Adding nodes to the graph
-  occurrences.forEach((occurrence, index) => {
-      graph.setNode(index.toString(), occurrence);
-  });
+    let nodeMap = new Map();
 
-  // Connecting nodes based on the order of occurrences
-  for (let i = 0; i < occurrences.length - 1; i++) {
-      const edgeLabel = `${occurrences[i].context} -> ${occurrences[i+1].context}`;
-      graph.setEdge(i.toString(), (i + 1).toString(), { label: edgeLabel });
-  }
+    // Adding unique nodes to the graph
+    occurrences.forEach((occurrence, index) => {
+        const key = `${occurrence.file}-${occurrence.function}-${occurrence.codeBlock}-${occurrence.context}`;
+        if (!nodeMap.has(key)) {
+            nodeMap.set(key, index);
+            graph.setNode(index.toString(), occurrence);
+        }
+    });
 
-  return graph;
+    // Helper function to set edges
+    const setGraphEdge = (source: Occurrence, target: Occurrence) => {
+        const edgeLabel = `${source.context} -> ${target.context}`;
+        graph.setEdge(
+            nodeMap.get(`${source.file}-${source.function}-${source.codeBlock}-${source.context}`).toString(), 
+            nodeMap.get(`${target.file}-${target.function}-${target.codeBlock}-${target.context}`).toString(), 
+            { label: edgeLabel }
+        );
+    }
+
+    // Connecting nodes based on the flow of code
+    for (let source of occurrences) {
+        for (let target of occurrences) {
+            // Skip if file and identifierName don't match
+           
+            // if (source.file !== target.file) continue;
+
+            // Ensure that the source and target are within the same function, with an exception for Function Call context and Variable Declaration context
+            // if (source.function !== target.function && source.context !== ("Function Call")) continue;
+
+            const validConnections = {
+                "Function Parameter": ["Equality or Comparison Check", "Function Call", "Return Statement"],
+                "Function Call": ["Function Parameter"],
+                "JSX Attribute": ["Hook Declaration"],
+                "Import Statement": ["JSX Element"],
+                "Variable Declaration": ["Equality or Comparison Check", "Function Call", "Return Statement"]
+            };
+          
+
+            if (validConnections[source.context]?.includes(target.context)) {
+                
+                if (source.context === "Function Call" && target.context === "Function Parameter" && target.declaration.includes(source.codeBlock)) {
+                    setGraphEdge(target, source);
+                    continue;
+                    
+                }
+                else if (source.context === "Function Call" && target.context === "Function Parameter" && source.codeBlock.includes(target.function)) {
+                    
+                    
+                    setGraphEdge(source, target);
+                    
+                }
+                else if ((source.context === "Function Call" && target.context === "Function Parameter")){
+                    continue;
+                }
+                
+
+                setGraphEdge(source, target);
+            }
+
+            
+        }
+    }
+
+    return graph;
 }

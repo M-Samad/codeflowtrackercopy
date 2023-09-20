@@ -10,10 +10,10 @@ function App() {
   async function runAnalysis() {
     const occurrences = await findOccurrences(searchString);
     // displayResults(occurrences);
-    
+    console.log("++++occurrences++++",occurrences)
     const graph = new Graph();
     const graphObj = await displayGraphWithCode(graph, occurrences);
-    console.log("++++graph++++",graphObj)
+    console.log("++++grap++++",graphObj)
     }
   useEffect(() => {
     runAnalysis();
