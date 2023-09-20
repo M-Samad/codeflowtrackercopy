@@ -16,7 +16,7 @@ const AST_PARSE_CONFIG: {
 
 
 export async function analyzeFile(filePath: string, searchString: string): Promise<Occurrence[]> {
-  const fileContentOrItems = await fetchRepoFiles(filePath);
+    const fileContentOrItems = await fetchRepoFiles(filePath);
 
     if (typeof fileContentOrItems !== 'string') {
         console.error(`Expected file content but received a list of items for path: ${filePath}`);
@@ -24,18 +24,18 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
     }
 
     const ast = parse(fileContentOrItems, AST_PARSE_CONFIG);
-
     let occurrences: Occurrence[] = [];
+
     traverse(ast, {
         Identifier(path) {
             if (path.node.name === searchString) {
+                
                 let functionName = "Global/Outside Function";
                 let parentFunction = path.findParent((p) => p.isFunctionDeclaration() || p.isArrowFunctionExpression() || p.isFunctionExpression());
-
+                
                 if (parentFunction && parentFunction.node.type === 'FunctionDeclaration' && parentFunction.node.id) {
                     functionName = parentFunction.node.id.name;
                 }
-                
 
                 let codeBlock = "";
                 let enclosingStatement = path.findParent((p) => p.isStatement());  
@@ -49,11 +49,25 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
 
                 let declaration = path.findParent((p) => p.isFunctionDeclaration() || p.isImportDeclaration() || p.isVariableDeclaration());
                 let context = '';
-
-                // Function Parameter and Function Declaration
-                if (path.parentPath.isFunctionDeclaration() || path.parentPath.isFunctionExpression() || path.parentPath.isArrowFunctionExpression()) {
+                if (path.parentPath.isJSXAttribute()) {
+                    context = "JSX Attribute";
+                }
+                // Hook Declaration
+                else if (path.parentPath.isCallExpression() && ["useState", "useEffect", "useMemo", "useCallback", "useRef", "useContext"].includes(path.parentPath.node.callee.name)) {
+                    context = "Hook Declaration";
+                }
+                // JSX Element
+                else if (path.parentPath.isJSXOpeningElement()) {
+                    context = "JSX Element";
+                }
+                // Import Statement
+                else if (path.parentPath.isImportSpecifier() || path.parentPath.isImportDefaultSpecifier()) {
+                    context = "Import Statement";
+                }
+                // Function Parameter
+               else if (path.parentPath.isFunctionDeclaration() || path.parentPath.isFunctionExpression() || path.parentPath.isArrowFunctionExpression()) {
                     const functionNode = path.parentPath.node;
-                    
+
                     // Check if the identifier matches a function parameter
                     if (functionNode.params.some(param => param.type === "Identifier" && param.name === searchString)) {
                         context = "Function Parameter";
@@ -65,33 +79,36 @@ export async function analyzeFile(filePath: string, searchString: string): Promi
                 }
                 // Return Statement (deep check)
                 else if (path.findParent((p) => p.isReturnStatement())) {
-                  context = "Return Statement";
+                    context = 'Return Statement';
                 }
                 // Function Call
                 else if (path.parentPath.isCallExpression()) {
-                  context = "Function Call";
+                    context = 'Function Call';
                 }
                 // Variable Declaration
                 else if (path.parentPath.isVariableDeclarator()) {
-                  context = "Variable Declaration";
-                }
+                    context = 'Variable Declaration';
+                } 
                 // Object Property
                 else if (path.parentPath.isObjectProperty()) {
-                  context = "Object Property";
-                }
+                    context = 'Object Property';
+                } 
                 // Array Element
                 else if (path.parentPath.isArrayExpression()) {
-                  context = "Array Element";
-                } else if (
-                  path.parentPath.isBinaryExpression() &&
-                  ["===", "!==", "==", "!=", "<", ">", "<=", ">="].includes(
-                    path.parentPath.node.operator
-                  ) &&
-                  (path.parentPath.parentPath.isConditionalExpression() ||
-                    path.parentPath.parentPath.isIfStatement())
-                ) {
-                  context = "Equality or Comparison Check";
+                    context = 'Array Element';
                 }
+                else if (
+                    path.parentPath.isBinaryExpression() &&
+                    ["===", "!==", "==", "!=", "<", ">", "<=", ">="].includes(
+                      path.parentPath.node.operator
+                    ) &&
+                    (path.parentPath.parentPath.isConditionalExpression() ||
+                      path.parentPath.parentPath.isIfStatement())
+                  ) {
+                    context = "Equality or Comparison Check";
+                  }
+
+
                 if (declaration) {
                     const startLine = declaration.node.loc?.start.line ?? 0;
                     const endLine = declaration.node.loc?.end.line ?? 0;
@@ -127,7 +144,6 @@ export async function analyzeFunctionUsage(functionName: string): Promise<Functi
                 return [];
             }
             const ast = parse(fileContent, AST_PARSE_CONFIG);
-            
             traverse(ast, {
                 CallExpression(path) {
                     if (path.node.callee.type === "Identifier" && path.node.callee.name === functionName) {

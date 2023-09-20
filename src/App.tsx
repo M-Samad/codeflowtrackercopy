@@ -11,10 +11,9 @@ function App() {
     const occurrences = await findOccurrences(searchString);
     // displayResults(occurrences);
     console.log("++++occurrences++++",occurrences)
-    const graph = new Graph({ multigraph: true });
-    
+    const graph = new Graph();
     const graphObj = await displayGraphWithCode(graph, occurrences);
-    console.log("++++graph++++",graphObj)
+    console.log("++++grap++++",graphObj)
     }
   useEffect(() => {
     runAnalysis();
